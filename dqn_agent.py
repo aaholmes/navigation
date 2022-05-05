@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 BUFFER_SIZE = int(3e4)  # replay buffer size
-BATCH_SIZE = 64         # minibatch size
+#BATCH_SIZE = 256        # minibatch size
 TAU = 1e-3              # for soft update of target parameters
 LR = 5e-4               # learning rate 
 UPDATE_EVERY = 4        # how often to update the network
@@ -19,7 +19,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed, gamma_init=0.9, gamma_inc=0.3, gamma_final=0.9, type="DQN"):
+    def __init__(self, state_size, action_size, seed, gamma_init=0.9, gamma_inc=0.3, gamma_final=0.9, batch_size_init=64, batch_size_final=64, type="DQN"):
         """Initialize an Agent object.
         
         Params
@@ -35,6 +35,8 @@ class Agent():
         self.gamma = gamma_init
         self.gamma_inc = gamma_inc
         self.gamma_final = gamma_final
+        self.batch_size = batch_size_init
+        self.batch_size_final = batch_size_final
         self.type = type
 
         # Q-Network
@@ -44,8 +46,8 @@ class Agent():
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
         # Replay memory
-        print("Initializing replay buffer with buffer size", BUFFER_SIZE, "and batch size", BATCH_SIZE)
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
+        print("Initializing replay buffer with buffer size", BUFFER_SIZE, "and batch size", self.batch_size)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, seed)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
     
@@ -58,8 +60,8 @@ class Agent():
             self.t_step = (self.t_step + 1) % UPDATE_EVERY
             if self.t_step == 0:
                 # If enough samples are available in memory, get random subset and learn
-                if len(self.memory) > BATCH_SIZE:
-                    experiences = self.memory.sample()
+                if len(self.memory) > self.batch_size:
+                    experiences = self.memory.sample(self.batch_size)
                     self.learn(experiences, self.gamma)
         elif self.type == "MC":
             # Learn
@@ -114,10 +116,12 @@ class Agent():
         #self.soft_update(self.qnetwork_local, self.qnetwork_target, TAU) 
         
 
-    def hard_update(self):
+    def hard_update(self, update_batch):
         for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
             target_param.data.copy_(local_param.data)              
         self.gamma = min(self.gamma_final, self.gamma + self.gamma_inc)
+        if update_batch:
+            self.batch_size = min(self.batch_size_final, 2 * self.batch_size)
 
 
     def soft_update(self, local_model, target_model, tau):
@@ -137,7 +141,7 @@ class Agent():
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, action_size, buffer_size, seed):
         """Initialize a ReplayBuffer object.
 
         Params
@@ -149,7 +153,6 @@ class ReplayBuffer:
         """
         self.action_size = action_size
         self.memory = deque(maxlen=buffer_size)  
-        self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.seed = random.seed(seed)
     
@@ -158,9 +161,9 @@ class ReplayBuffer:
         e = self.experience(state, action, reward, next_state, done)
         self.memory.append(e)
     
-    def sample(self):
+    def sample(self, batch_size):
         """Randomly sample a batch of experiences from memory."""
-        experiences = random.sample(self.memory, k=self.batch_size)
+        experiences = random.sample(self.memory, k=batch_size)
 
         states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long().to(device)
