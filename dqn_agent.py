@@ -46,7 +46,10 @@ class Agent():
             self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
             self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
         else:
-            print("Creating new Double DQN agent")
+            if self.ddqn_mean:
+                print("Creating new Double DQN agent that moves using mean(Q1, Q2)")
+            else:
+                print("Creating new Double DQN agent that moves using random_choice(Q1, Q2)")
             self.qnetwork1 = QNetwork(state_size, action_size, seed).to(device)
             self.qnetwork2 = QNetwork(state_size, action_size, seed + 1).to(device)
             self.optimizer1 = optim.Adam(self.qnetwork1.parameters(), lr=LR)
