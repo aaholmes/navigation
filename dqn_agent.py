@@ -1,25 +1,24 @@
 import numpy as np
 import random
 from collections import namedtuple, deque
-
-from model import QNetwork
-
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
+from model import QNetwork
+
+
 BUFFER_SIZE = int(3e4)  # replay buffer size
-#BATCH_SIZE = 256        # minibatch size
-TAU = 1e-3              # for soft update of target parameters
+BATCH_SIZE = 64         # minibatch size
+GAMMA = 0.95
 LR = 5e-4               # learning rate 
-UPDATE_EVERY = 1        # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed, gamma_init=0.95, gamma_final=0.95, batch_size_init=64, batch_size_final=64, ddqn=False, ddqn_mean=True):
+    def __init__(self, state_size, action_size, seed, update_every=1, ddqn=False, ddqn_mean=True):
         """Initialize an Agent object.
         
         Params
@@ -27,51 +26,50 @@ class Agent():
             state_size (int): dimension of each state
             action_size (int): dimension of each action
             seed (int): random seed
+            update_every: how often to update the network
             ddqn: True for double DQN
+            ddqn_mean: If ddqn is True, then this is whether to act using mean(Q1, Q2); the alternative uses random_choice(Q1, Q2)
         """
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
-        self.gamma = gamma_init
-        self.gamma_final = gamma_final
-        self.batch_size = batch_size_init
-        self.batch_size_final = batch_size_final
+        self.update_every = update_every
         self.ddqn = ddqn
         self.ddqn_mean = ddqn_mean # For Double DQN: True to use mean of Q1 and Q2; False to use random one of Q1 and Q2
 
         # Q-Network
         if not self.ddqn:
-            print("Creating new DQN agent")
+            print("Creating new DQN agent with gamma =", GAMMA)
             self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
             self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
             self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
         else:
             if self.ddqn_mean:
-                print("Creating new Double DQN agent that moves using mean(Q1, Q2)")
+                print("Creating new Double DQN agent that moves using mean(Q1, Q2) with gamma =", GAMMA)
             else:
-                print("Creating new Double DQN agent that moves using random_choice(Q1, Q2)")
+                print("Creating new Double DQN agent that moves using random_choice(Q1, Q2) with gamma =", GAMMA)
             self.qnetwork1 = QNetwork(state_size, action_size, seed).to(device)
-            self.qnetwork2 = QNetwork(state_size, action_size, seed + 1).to(device)
+            self.qnetwork2 = QNetwork(state_size, action_size, seed + 1000).to(device)
             self.optimizer1 = optim.Adam(self.qnetwork1.parameters(), lr=LR)
             self.optimizer2 = optim.Adam(self.qnetwork2.parameters(), lr=LR)
 
         # Replay memory
-        print("Initializing replay buffer with buffer size", BUFFER_SIZE, "and batch size", self.batch_size, "with gamma=", self.gamma)
+        print("Initializing replay buffer with buffer size", BUFFER_SIZE, "and batch size", BATCH_SIZE)
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, seed)
-        # Initialize time step (for updating every UPDATE_EVERY steps)
+        # Initialize time step (for updating every self.update_every steps)
         self.t_step = 0
     
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
         
-        # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % UPDATE_EVERY
+        # Learn every self.update_every time steps.
+        self.t_step = (self.t_step + 1) % self.update_every
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > self.batch_size:
-                experiences = self.memory.sample(self.batch_size)
-                self.learn(experiences, self.gamma)
+            if len(self.memory) > BATCH_SIZE:
+                experiences = self.memory.sample(BATCH_SIZE)
+                self.learn(experiences, GAMMA)
 
 
     def act(self, state, eps=0.):
@@ -182,27 +180,11 @@ class Agent():
                 self.optimizer2.step()
 
 
-    def hard_update(self, update_batch):
+    def hard_update(self):
         if self.ddqn:
             return
         for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
             target_param.data.copy_(local_param.data)              
-        if update_batch:
-            self.batch_size = min(self.batch_size_final, 2 * self.batch_size)
-
-
-    def soft_update(self, local_model, target_model, tau):
-        """Soft update model parameters.
-        θ_target = τ*θ_local + (1 - τ)*θ_target
-
-        Params
-        ======
-            local_model (PyTorch model): weights will be copied from
-            target_model (PyTorch model): weights will be copied to
-            tau (float): interpolation parameter 
-        """
-        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
 
 class ReplayBuffer:
