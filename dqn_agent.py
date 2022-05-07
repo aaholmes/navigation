@@ -19,7 +19,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed, gamma_init=0.95, gamma_final=0.95, batch_size_init=64, batch_size_final=64, ddqn=False):
+    def __init__(self, state_size, action_size, seed, gamma_init=0.95, gamma_final=0.95, batch_size_init=64, batch_size_final=64, ddqn=False, ddqn_mean=True):
         """Initialize an Agent object.
         
         Params
@@ -37,7 +37,7 @@ class Agent():
         self.batch_size = batch_size_init
         self.batch_size_final = batch_size_final
         self.ddqn = ddqn
-        self.ddqn_mean = True # For Double DQN: True to use mean of Q1 and Q2; False to use min of Q1 and Q2
+        self.ddqn_mean = ddqn_mean # For Double DQN: True to use mean of Q1 and Q2; False to use random one of Q1 and Q2
 
         # Q-Network
         if not self.ddqn:
@@ -101,7 +101,10 @@ class Agent():
                 if self.ddqn_mean:
                     action_values = [(i + j) / 2.0 for (i, j) in zip(action_values1.cpu().data.numpy(), action_values2.cpu().data.numpy())]
                 else:
-                    action_values = [min(i, j) for (i, j) in zip(action_values1.cpu().data.numpy(), action_values2.cpu().data.numpy())]
+                    if random.random() < 0.5:
+                        action_values = action_values1.cpu().data.numpy()
+                    else:
+                        action_values = action_values2.cpu().data.numpy()
                 return np.argmax(action_values)
 
         else:
