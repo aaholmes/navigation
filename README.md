@@ -17,4 +17,4 @@ Episodes begin with the agent in a random location and orientation in a square m
 ### Downloading needed files
 
 ## Instructions
-The jupyter notebook Collect_Bananas.ipynb contains all the code needed to train the agent. There are three modes one can run in:
+The jupyter notebook Navigation.ipynb contains all the code needed to train the agent. There are three modes one can run in:
