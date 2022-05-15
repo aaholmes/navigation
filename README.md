@@ -1,6 +1,6 @@
 # Learning to Navigate with Deep Reinforcement Learning
 ## Project Details
-This project uses deep reinforcement learning to learn to navigate a 3D world, collecting some objects while avoiding others. Specifically, it solves Unity's Bananas environment, where each yellow banana yields a reward of +1 and each blue banana yields a reward of -1. It is the first project of the Udacity Deep Reinforcement Learning nanodegree.
+This project uses deep reinforcement learning to learn to navigate a 3D world, collecting some objects while avoiding others. Specifically, it solves Unity's Bananas environment, where each yellow banana yields a reward of +1 and each blue banana yields a reward of -1. It is the first project of the [Udacity Deep Reinforcement Learning Nanodegree](https://www.udacity.com/course/deep-reinforcement-learning-nanodegree--nd893).
 
 The state space is a 37-dimensional vector containing the agent's velocity and ray-based projections of nearby objects in its forward direction.
 
