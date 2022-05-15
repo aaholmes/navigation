@@ -1,3 +1,6 @@
+# Defines a DQN agent: how it selects actions, learns, etc.
+# Borrows heavily from the Udacity Deep Reinforcement Learning course
+
 import numpy as np
 import random
 from collections import namedtuple, deque

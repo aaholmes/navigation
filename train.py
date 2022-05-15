@@ -1,3 +1,6 @@
+# Manages training procedure
+# Borrows heavily from the Udacity Deep Reinforcement Learning course
+
 import numpy as np
 import torch
 from collections import deque

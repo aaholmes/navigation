@@ -1,3 +1,6 @@
+# Defines the Q-Network
+# Borrows heavily from the Udacity Deep Reinforcement Learning course
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
